@@ -17,8 +17,9 @@ class SearchLayoutSpec {
   static const double resultRowHeight = 56;
   static const double expandedActionHeight = 44;
   static const double expandedActionTopGap = 8;
-  static const double emptyIconWidth = 42;
-  static const double emptyIconHeight = 48;
+  // Figma의 360px 화면 기준 empty illustration 크기다.
+  static const double emptyIconWidth = 225;
+  static const double emptyIconHeight = 104;
   static const double emptyTopOffset = 208;
   static const double toastHeight = 66;
 
