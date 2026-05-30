@@ -14,19 +14,16 @@ class NaverAutocompleteItemDto {
   });
 
   factory NaverAutocompleteItemDto.fromJson(Map<String, dynamic> json) {
-    // TODO(assignment): Read the autocomplete fields from json and create the
-    // DTO. See README.md for the expected Naver endpoint and sample payload.
-    //
-    // Required fields:
-    // - code
-    // - name
-    // - typeCode
-    // - typeName
-    // - url
-    // - nationCode
-    // - category
-    throw UnimplementedError(
-      'TODO(assignment): implement NaverAutocompleteItemDto.fromJson',
+    // 응답 원본 필드를 DTO에 그대로 보존하고, 국내/6자리 종목 필터링은
+    // isDomesticStock과 repository 단계에서 처리해 파싱 책임을 분리한다.
+    return NaverAutocompleteItemDto(
+      code: _readString(json['code']),
+      name: _readString(json['name']),
+      typeCode: _readString(json['typeCode']),
+      typeName: _readString(json['typeName']),
+      url: _readString(json['url']),
+      nationCode: _readString(json['nationCode']),
+      category: _readString(json['category']),
     );
   }
 
@@ -58,19 +55,17 @@ class NaverRealtimeQuoteDto {
   });
 
   factory NaverRealtimeQuoteDto.fromJson(Map<String, dynamic> json) {
-    // TODO(assignment): Map the realtime quote payload into this DTO.
-    //
-    // Naver keys used by the solution:
-    // - cd: symbol
-    // - nv: current price
-    // - pcv: previous close
-    // - ov: open price
-    // - hv: high price
-    // - lv: low price
-    // - aq: accumulated trading volume
-    // - countOfListedStock: listed share count (optional)
-    throw UnimplementedError(
-      'TODO(assignment): implement NaverRealtimeQuoteDto.fromJson',
+    // 네이버 realtime 응답은 축약 키를 쓰고 숫자가 문자열/num으로 섞일 수 있어
+    // 공통 reader로 정규화한다. 상장주식수는 선택값이라 없으면 시총 계산만 생략한다.
+    return NaverRealtimeQuoteDto(
+      symbol: _readString(json['cd']),
+      currentPrice: _readDouble(json['nv']),
+      previousClose: _readDouble(json['pcv']),
+      openPrice: _readDouble(json['ov']),
+      highPrice: _readDouble(json['hv']),
+      lowPrice: _readDouble(json['lv']),
+      accumulatedTradingVolume: _readInt(json['aq']),
+      countOfListedStock: _readNullableInt(json['countOfListedStock']) ?? 0,
     );
   }
 
@@ -105,9 +100,11 @@ class NaverChartMetadataDto {
   });
 
   factory NaverChartMetadataDto.fromJson(Map<String, dynamic> json) {
-    // TODO(assignment): Map the chart metadata payload into this DTO.
-    throw UnimplementedError(
-      'TODO(assignment): implement NaverChartMetadataDto.fromJson',
+    // 메타데이터는 화면 표시와 repository 매핑에 필요한 최소 필드만 읽는다.
+    return NaverChartMetadataDto(
+      symbol: _readString(json['symbolCode']),
+      stockName: _readString(json['stockName']),
+      stockExchangeNameKor: _readString(json['stockExchangeNameKor']),
     );
   }
 
@@ -127,9 +124,15 @@ class NaverHistoricalPriceDto {
   });
 
   factory NaverHistoricalPriceDto.fromJson(Map<String, dynamic> json) {
-    // TODO(assignment): Parse one historical OHLCV row.
-    throw UnimplementedError(
-      'TODO(assignment): implement NaverHistoricalPriceDto.fromJson',
+    // JSON 차트와 HTML 파싱 결과가 같은 키를 사용하도록 맞춰 두면,
+    // 과거 날짜/상세 차트 계산은 동일한 OHLCV 모델만 바라보면 된다.
+    return NaverHistoricalPriceDto(
+      localDate: _readLocalDate(json['localDate']),
+      closePrice: _readDouble(json['closePrice']),
+      openPrice: _readDouble(json['openPrice']),
+      highPrice: _readDouble(json['highPrice']),
+      lowPrice: _readDouble(json['lowPrice']),
+      accumulatedTradingVolume: _readInt(json['accumulatedTradingVolume']),
     );
   }
 
@@ -149,10 +152,20 @@ class NaverHistoricalChartDto {
   });
 
   factory NaverHistoricalChartDto.fromJson(Map<String, dynamic> json) {
-    // TODO(assignment): Parse the chart wrapper and convert each priceInfos
-    // entry with NaverHistoricalPriceDto.fromJson.
-    throw UnimplementedError(
-      'TODO(assignment): implement NaverHistoricalChartDto.fromJson',
+    // priceInfos의 각 row를 바로 도메인 모델로 넘기지 않고 DTO row로 변환해
+    // 날짜 정규화와 숫자 파싱 규칙을 한곳에 모은다.
+    final rawPriceInfos = json['priceInfos'];
+    if (rawPriceInfos is! List) {
+      throw FormatException('Naver priceInfos is not a list');
+    }
+
+    return NaverHistoricalChartDto(
+      symbol: _readString(json['code']),
+      periodType: _readString(json['periodType']),
+      priceInfos: [
+        for (final item in rawPriceInfos)
+          NaverHistoricalPriceDto.fromJson(_readStringKeyedMap(item)),
+      ],
     );
   }
 
@@ -176,21 +189,29 @@ class NaverDailyHistoryPageDto {
 }
 
 DateTime _readLocalDate(Object? value) {
+  // 내부 비교/캐시는 yyyyMMdd 기준의 날짜만 필요하므로 시간 정보는 제거한다.
+  // HTML/JSON 소스 차이를 흡수하려고 구분자는 버리고 숫자 8자리만 사용한다.
+  if (value is DateTime) {
+    return normalizeAsOfDate(value);
+  }
+
   final text = _readString(value);
-  if (text.length != 8) {
+  final digits = text.replaceAll(RegExp(r'[^0-9]'), '');
+  if (digits.length != 8) {
     throw FormatException('Invalid Naver localDate "$text"');
   }
 
   return normalizeAsOfDate(
     DateTime(
-      int.parse(text.substring(0, 4)),
-      int.parse(text.substring(4, 6)),
-      int.parse(text.substring(6, 8)),
+      int.parse(digits.substring(0, 4)),
+      int.parse(digits.substring(4, 6)),
+      int.parse(digits.substring(6, 8)),
     ),
   );
 }
 
 String _readString(Object? value) {
+  // 필수 응답값은 빈 문자열로 조용히 통과시키지 않고 바로 파싱 오류를 낸다.
   final text = value?.toString().trim();
   if (text == null || text.isEmpty) {
     throw FormatException('Missing string value for "$value"');
@@ -199,6 +220,7 @@ String _readString(Object? value) {
 }
 
 double _readDouble(Object? value) {
+  // 네이버 숫자 응답은 180100 또는 "180,100" 형태가 섞여 들어올 수 있다.
   if (value is num) {
     return value.toDouble();
   }
@@ -206,6 +228,7 @@ double _readDouble(Object? value) {
 }
 
 int _readInt(Object? value) {
+  // 거래량/상장주식수처럼 정수 의미의 값은 num도 반올림해 int로 맞춘다.
   if (value is int) {
     return value;
   }
@@ -220,4 +243,15 @@ int? _readNullableInt(Object? value) {
     return null;
   }
   return _readInt(value);
+}
+
+Map<String, dynamic> _readStringKeyedMap(Object? value) {
+  // 테스트와 실제 JSON 디코딩 결과의 Map 타입 차이를 흡수한다.
+  if (value is Map<String, dynamic>) {
+    return value;
+  }
+  if (value is Map) {
+    return value.map((key, value) => MapEntry(key.toString(), value));
+  }
+  throw FormatException('Expected Naver JSON object but found "$value"');
 }
