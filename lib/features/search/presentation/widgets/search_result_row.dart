@@ -5,6 +5,7 @@ import '../../../../theme/app_assets.dart';
 import '../../../../theme/app_theme.dart';
 import '../../domain/services/search_text_utils.dart';
 import '../layout/search_layout_spec.dart';
+import 'search_action_bar.dart';
 
 class SearchResultRow extends StatelessWidget {
   const SearchResultRow({
@@ -55,11 +56,10 @@ class SearchResultRow extends StatelessWidget {
                       child: AppAssetSlotIcon(
                         key: Key('search-heart-icon-${item.id}'),
                         assetPath: AppAssets.favoriteHeart,
-                        // TODO(assignment): Match the exact Figma slot size.
-                        // This starter keeps the slot slightly oversized so
-                        // the related widget test can guide the fix.
-                        slotWidth: 24,
-                        slotHeight: 24,
+                        // 슬롯은 20×20: 아이콘 실제 크기(16×13)보다 약간 크게 잡아
+                        // 터치 영역을 확보하면서 Figma 기준 슬롯에 맞춤
+                        slotWidth: 20,
+                        slotHeight: 20,
                         assetWidth: AppAssetSizes.favoriteHeart.width,
                         assetHeight: AppAssetSizes.favoriteHeart.height,
                         color: item.isFavorite
@@ -72,32 +72,21 @@ class SearchResultRow extends StatelessWidget {
               ),
             ),
             if (isSelected) ...[
-              const SizedBox(height: 0),
+              // Figma 기준 액션바 위 8px 간격
+              SizedBox(height: SearchLayoutSpec.expandedActionTopGap),
               Padding(
                 padding: EdgeInsets.symmetric(
                   horizontal: layout.horizontalPadding,
                 ),
-                child: Container(
+                // SearchActionBar에 key를 붙여 테스트에서 참조 가능하게 유지
+                child: SearchActionBar(
                   key: Key('search-actions-${item.id}'),
-                  height: SearchLayoutSpec.expandedActionHeight,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: AppColors.bg.bg_2_212121,
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(color: AppColors.border.border_5_3b3e53),
-                  ),
-                  child: InkWell(
-                    onTap: () => onActionTap('TODO'),
-                    child: Center(
-                      child: Text(
-                        'TODO(assignment): SearchActionBar를 Figma 기준으로 재구성하세요.',
-                        style: AppTypography.searchMeta,
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ),
+                  layout: layout,
+                  onActionTap: onActionTap,
                 ),
               ),
+              // Figma 기준 액션바 아래 8px 간격
+              SizedBox(height: SearchLayoutSpec.expandedActionTopGap),
             ],
           ],
         ),
@@ -114,32 +103,50 @@ class _SearchTextColumn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasQuery = query.trim().isNotEmpty;
-    // TODO(assignment): Rebuild this text block to match Figma.
-    // Expected shape:
-    // - title + subtitle as two RichText widgets
-    // - query highlight using splitSearchTextParts()
-    // - typography and ellipsis should match the design
+    // splitSearchTextParts로 텍스트를 일반/하이라이트 파트로 분리한 뒤
+    // TextSpan 리스트로 변환해 RichText에 전달한다.
+    // 하이라이트 색상은 Figma point_B980FF 기준.
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          item.name,
-          style: hasQuery
-              ? AppTypography.searchName.copyWith(
-                  decoration: TextDecoration.none,
-                )
-              : AppTypography.searchName,
+        RichText(
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
+          text: TextSpan(
+            children: splitSearchTextParts(item.name, query)
+                .map(
+                  (part) => TextSpan(
+                    text: part.text,
+                    style: part.isHighlighted
+                        ? AppTypography.searchName.copyWith(
+                            color: AppColors.mainAndAccent.point_b980ff,
+                          )
+                        : AppTypography.searchName,
+                  ),
+                )
+                .toList(),
+          ),
         ),
         const SizedBox(height: 4),
-        Text(
-          buildSearchSubtitle(item),
-          style: AppTypography.searchMeta,
+        // 서브텍스트(symbol | market)도 동일 방식으로 하이라이트 적용
+        RichText(
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
+          text: TextSpan(
+            children: splitSearchTextParts(buildSearchSubtitle(item), query)
+                .map(
+                  (part) => TextSpan(
+                    text: part.text,
+                    style: part.isHighlighted
+                        ? AppTypography.searchMeta.copyWith(
+                            color: AppColors.mainAndAccent.point_b980ff,
+                          )
+                        : AppTypography.searchMeta,
+                  ),
+                )
+                .toList(),
+          ),
         ),
       ],
     );
