@@ -53,6 +53,10 @@ void main() {
 
     expect(find.byKey(const Key('search-empty-state')), findsOneWidget);
     expect(find.byKey(const Key('search-empty-group')), findsOneWidget);
+    expect(
+      tester.getSize(find.byKey(const Key('search-empty-illustration'))),
+      const Size(225, 104),
+    );
   });
 
   testWidgets('smoke: clears search results and selection on clear', (
