@@ -110,10 +110,13 @@ class SearchController extends Notifier<SearchUiState> {
         .read(favoriteIdsControllerProvider.notifier)
         .toggle(item.id);
 
-    // TODO(assignment): toggle 이후 최신 favorite 상태를 현재 검색 결과에 다시
-    // 반영하고, 추가 시 토스트를 보여주고 제거 시 토스트를 닫으세요.
-    // 관련 테스트:
-    // - test/features/search/presentation/providers/search_controller_test.dart
+    // 추가 시 토스트 표시, 제거 시 토스트 닫기
+    // isFavorite 재매핑은 search_controller_test 관련 별도 TODO
+    if (isAdded) {
+      _showToast(const SearchToastData(message: '관심그룹에 추가되었습니다.'));
+    } else {
+      dismissToast();
+    }
 
     return isAdded;
   }
