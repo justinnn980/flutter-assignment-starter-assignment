@@ -20,10 +20,11 @@ class SearchController extends Notifier<SearchUiState> {
   @override
   SearchUiState build() {
     ref.onDispose(() => _toastTimer?.cancel());
-    // TODO(assignment): favoriteIdsControllerProvider를 listen해서
-    // 즐겨찾기 상태가 바뀔 때마다 현재 검색 결과의 isFavorite를 다시 매핑하세요.
-    // 관련 테스트:
-    // - test/features/search/presentation/providers/search_controller_test.dart
+    // favoriteIdsControllerProvider 변화를 listen → _applyFavoriteIds로 즉시 재매핑
+    // 하트 탭 시 favoriteIdsController 상태가 바뀌면 이 콜백이 동기 호출된다
+    ref.listen(favoriteIdsControllerProvider, (_, next) {
+      _applyFavoriteIds(next.valueOrNull);
+    });
     return const SearchUiState();
   }
 
@@ -64,12 +65,19 @@ class SearchController extends Notifier<SearchUiState> {
       return;
     }
 
+    // 검색 결과 도착 시점에 favoriteIds 현재 값을 read해서 isFavorite 초기 동기화
+    // listen은 이후 변화만 잡으므로, 첫 결과에도 별도로 적용 필요
+    final favoriteIds =
+        ref.read(favoriteIdsControllerProvider).valueOrNull ?? {};
     state = state.copyWith(
-      // TODO(assignment): favoriteIdsControllerProvider의 현재 값을 읽어서
-      // 첫 검색 결과에도 isFavorite가 반영되도록 연결하세요.
-      // 관련 테스트:
-      // - test/features/search/presentation/providers/search_controller_test.dart
-      results: result,
+      results: result.whenData(
+        (items) => items
+            .map(
+              (item) =>
+                  item.copyWith(isFavorite: favoriteIds.contains(item.id)),
+            )
+            .toList(),
+      ),
       selectedItemId: null,
     );
   }
@@ -129,22 +137,23 @@ class SearchController extends Notifier<SearchUiState> {
     state = state.copyWith(toast: null);
   }
 
-  // ignore: unused_element
   void _showToast(SearchToastData toast) {
     _toastTimer?.cancel();
     state = state.copyWith(toast: toast);
     _toastTimer = Timer(const Duration(seconds: 2), dismissToast);
   }
 
-  // ignore: unused_element
   void _applyFavoriteIds(Set<String>? favoriteIds) {
-    // TODO(assignment): favoriteIds에 맞게 현재 results의 isFavorite를 다시 매핑하세요.
-    // selected item이 사라진 경우 selectedItemId도 정리해 주세요.
-    // 관련 테스트:
-    // - test/features/search/presentation/providers/search_controller_test.dart
-    if (favoriteIds == null) {
-      return;
-    }
+    if (favoriteIds == null) return;
+    final currentResults = state.results.valueOrNull;
+    if (currentResults == null) return;
+
+    // favoriteIds 기준으로 각 아이템 isFavorite 재매핑
+    final updated = currentResults
+        .map((item) => item.copyWith(isFavorite: favoriteIds.contains(item.id)))
+        .toList();
+
+    state = state.copyWith(results: AsyncData(updated));
   }
 }
 
