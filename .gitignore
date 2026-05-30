@@ -1,0 +1,70 @@
+# OS / Editor
+.DS_Store
+*.swp
+*.swo
+*.pyc
+*.class
+*.iml
+*.ipr
+*.iws
+*.orig
+*.tmp
+*~
+.atom/
+.history
+.idea/
+.svn/
+
+# VS Code settings are often personal.
+.vscode/
+
+# Logs
+*.log
+flutter_*.log
+
+# Dart / Flutter
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub/
+.pub-cache/
+/build/
+/coverage/
+**/doc/api/
+.packages
+pubspec_overrides.yaml
+
+# Generated golden failure artifacts
+/test/goldens/failures/
+
+# Swift / Xcode / CocoaPods
+.build/
+.buildlog/
+.swiftpm/
+DerivedData/
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.moved-aside
+*.perspectivev3
+**/xcuserdata/
+**/Pods/
+**/.symlinks/
+**/.plugin_symlinks/
+**/Flutter/ephemeral/
+**/Flutter/Generated.xcconfig
+**/Flutter/flutter_export_environment.sh
+**/Flutter/Flutter.podspec
+
+# Flutter app artifacts
+app.*.symbols
+app.*.map.json
+
+# Android
+/android/app/debug
+/android/app/profile
+/android/app/release
+/android/local.properties
+
+# Legacy / migration
+migrate_working_dir/
